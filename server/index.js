@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const db = require('./db');
 const { sign, middleware, adminOnly } = require('./auth');
-const { startPoller, pollUser, fetchPlayerRP } = require('./poller');
+const { startPoller, pollUser, fetchPlayerRP, startPollingForUser, stopPollingForUser, isPollingActive } = require('./poller');
 
 const app = express();
 app.use(express.json());
@@ -140,6 +140,7 @@ app.get('/api/me', middleware, (req, res) => {
       last_sync_at: prefs.last_sync_at ?? null,
     },
     trnEnabled: Boolean(process.env.TRN_API_KEY),
+    pollingActive: isPollingActive(req.user.id),
     split,
     splits: SPLITS,
     currentRP,
@@ -333,6 +334,20 @@ app.delete('/api/link', middleware, (req, res) => {
     'UPDATE prefs SET trn_platform = NULL, trn_username = NULL, last_known_rp = NULL, last_sync_at = NULL WHERE user_id = ?'
   ).run(req.user.id);
   res.json({ ok: true });
+});
+
+// Start/stop per-user polling.
+app.post('/api/polling/start', middleware, (req, res) => {
+  const prefs = db.prepare('SELECT trn_username FROM prefs WHERE user_id = ?').get(req.user.id);
+  if (!prefs?.trn_username) return res.status(400).json({ error: 'No TRN account linked' });
+  if (!process.env.TRN_API_KEY) return res.status(503).json({ error: 'TRN API key not configured' });
+  startPollingForUser(req.user.id);
+  res.json({ ok: true, pollingActive: true });
+});
+
+app.post('/api/polling/stop', middleware, (req, res) => {
+  stopPollingForUser(req.user.id);
+  res.json({ ok: true, pollingActive: false });
 });
 
 // Manual sync — polls TRN immediately for the current user.

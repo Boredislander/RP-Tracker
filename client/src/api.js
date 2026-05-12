@@ -45,6 +45,8 @@ export const api = {
   linkAccount: (platform, username) => request('POST', '/link', { platform, username }),
   unlinkAccount: () => request('DELETE', '/link'),
   syncNow: () => request('POST', '/sync'),
+  startPolling: () => request('POST', '/polling/start'),
+  stopPolling: () => request('POST', '/polling/stop'),
 
   getLeaderboard: () => request('GET', '/leaderboard'),
 

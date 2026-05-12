@@ -348,6 +348,7 @@ export default function Tracker({ onAdminChange }) {
   const [error, setError] = useState('');
   const [trnLinked, setTrnLinked] = useState(null); // { platform, username, last_sync_at, last_known_rp }
   const [trnEnabled, setTrnEnabled] = useState(false);
+  const [pollingActive, setPollingActive] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -373,6 +374,7 @@ export default function Tracker({ onAdminChange }) {
         if (onAdminChange) onAdminChange(Boolean(me.user.is_admin));
         if (me.needsSetup) setShowSetup(true);
         setTrnEnabled(Boolean(me.trnEnabled));
+        setPollingActive(Boolean(me.pollingActive));
         if (me.prefs.trn_username) {
           setTrnLinked({
             platform: me.prefs.trn_platform,
@@ -475,6 +477,21 @@ export default function Tracker({ onAdminChange }) {
     try {
       await api.unlinkAccount();
       setTrnLinked(null);
+      setPollingActive(false);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function togglePolling() {
+    try {
+      if (pollingActive) {
+        await api.stopPolling();
+        setPollingActive(false);
+      } else {
+        await api.startPolling();
+        setPollingActive(true);
+      }
     } catch (e) {
       setError(e.message);
     }
@@ -617,27 +634,52 @@ export default function Tracker({ onAdminChange }) {
 
       {/* ── Auto-Sync Status ── */}
       {trnEnabled && (
-        <div style={{ background: '#0d0d1a', border: '1px solid #1a1a2e', borderRadius: '10px', padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ background: '#0d0d1a', border: `1px solid ${pollingActive ? 'rgba(76,175,80,0.3)' : '#1a1a2e'}`, borderRadius: '10px', padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           {trnLinked ? (
             <>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50', flexShrink: 0, boxShadow: '0 0 6px #4caf50' }} />
-              <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', fontWeight: 600, color: '#888', flex: 1, minWidth: '120px' }}>
-                Auto-sync: <span style={{ color: '#e0e0e0' }}>{trnLinked.username}</span>
-                {trnLinked.last_sync_at && (
-                  <span style={{ color: '#555', marginLeft: '10px', fontSize: '12px' }}>
-                    · {formatTime(trnLinked.last_sync_at)}
-                  </span>
+              {/* Status dot */}
+              <span style={{
+                width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+                background: pollingActive ? '#4caf50' : '#555',
+                boxShadow: pollingActive ? '0 0 6px #4caf50' : 'none',
+              }} />
+
+              {/* Username + last sync */}
+              <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', fontWeight: 600, color: '#888', flex: 1, minWidth: '100px' }}>
+                <span style={{ color: '#e0e0e0' }}>{trnLinked.username}</span>
+                {pollingActive && <span style={{ color: '#4caf50', marginLeft: '8px', fontSize: '11px', letterSpacing: '1px' }}>· 1min</span>}
+                {!pollingActive && trnLinked.last_sync_at && (
+                  <span style={{ color: '#444', marginLeft: '8px', fontSize: '11px' }}>· {formatTime(trnLinked.last_sync_at)}</span>
                 )}
               </span>
+
+              {/* Start / Stop */}
               <button
-                style={{ background: 'none', border: '1px solid #1a1a2e', borderRadius: '5px', color: '#888', fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '4px 12px', cursor: syncing ? 'default' : 'pointer', opacity: syncing ? 0.5 : 1 }}
-                onClick={syncNow}
-                disabled={syncing}
+                style={{
+                  padding: '5px 16px', borderRadius: '5px', cursor: 'pointer',
+                  fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', fontWeight: 700,
+                  letterSpacing: '1.5px', textTransform: 'uppercase', border: 'none',
+                  background: pollingActive ? 'rgba(233,30,99,0.15)' : '#4caf50',
+                  color: pollingActive ? '#e91e63' : '#fff',
+                }}
+                onClick={togglePolling}
               >
-                {syncing ? '...' : 'Sync Now'}
+                {pollingActive ? 'Stop' : 'Start'}
               </button>
+
+              {/* Manual sync (only when not auto-polling) */}
+              {!pollingActive && (
+                <button
+                  style={{ background: 'none', border: '1px solid #1a1a2e', borderRadius: '5px', color: '#666', fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '5px 12px', cursor: syncing ? 'default' : 'pointer', opacity: syncing ? 0.5 : 1 }}
+                  onClick={syncNow}
+                  disabled={syncing}
+                >
+                  {syncing ? '...' : 'Sync Now'}
+                </button>
+              )}
+
               <button
-                style={{ background: 'none', border: 'none', color: '#333', fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', padding: '4px 8px' }}
+                style={{ background: 'none', border: 'none', color: '#2a2a4a', fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', padding: '4px 6px' }}
                 onClick={unlinkTRN}
               >
                 Unlink

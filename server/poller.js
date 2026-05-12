@@ -1,8 +1,26 @@
 const db = require('./db');
 
 const TRN_BASE = 'https://public-api.tracker.gg/v2/apex/standard';
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-const MIN_DELTA = 1; // ignore sub-1 RP noise
+const POLL_INTERVAL_MS = 60 * 1000; // 1 minute
+const MIN_DELTA = 1;
+
+// In-memory set of user IDs currently being polled.
+// Resets to empty on server restart — users re-enable from the UI.
+const activeUsers = new Set();
+
+function startPollingForUser(userId) {
+  activeUsers.add(userId);
+  console.log(`[poller] started for user ${userId} (${activeUsers.size} active)`);
+}
+
+function stopPollingForUser(userId) {
+  activeUsers.delete(userId);
+  console.log(`[poller] stopped for user ${userId} (${activeUsers.size} active)`);
+}
+
+function isPollingActive(userId) {
+  return activeUsers.has(userId);
+}
 
 async function trnFetch(path) {
   const apiKey = process.env.TRN_API_KEY;
@@ -17,17 +35,13 @@ async function trnFetch(path) {
   return res.json();
 }
 
-// Extract current ranked RP from a TRN profile response.
-// TRN returns an "overview" segment with a rankScore stat.
 function extractRankedRP(data) {
   const segments = data?.data?.segments ?? [];
 
-  // Try the overview segment first
   const overview = segments.find(s => s.type === 'overview');
   const fromOverview = overview?.stats?.rankScore?.value;
   if (typeof fromOverview === 'number') return Math.round(fromOverview);
 
-  // Fall back to the active season segment
   const season = segments.find(s => s.type === 'season' && s.attributes?.isActive);
   const fromSeason = season?.stats?.rankScore?.value;
   if (typeof fromSeason === 'number') return Math.round(fromSeason);
@@ -42,7 +56,7 @@ async function fetchPlayerRP(platform, username) {
   return extractRankedRP(data);
 }
 
-// Poll one user. Returns { rp, delta, logged } or throws.
+// Poll one user. Returns { trnRP, delta, logged } or throws.
 async function pollUser(userId) {
   const prefs = db.prepare('SELECT * FROM prefs WHERE user_id = ?').get(userId);
   if (!prefs?.trn_platform || !prefs?.trn_username) return null;
@@ -60,7 +74,6 @@ async function pollUser(userId) {
       db.prepare(
         'INSERT INTO sessions (user_id, rp, auto_logged) VALUES (?, ?, 1)'
       ).run(userId, delta);
-      // Auto-sync is the source of truth — clear any manual override
       db.prepare('UPDATE prefs SET override_rp = NULL WHERE user_id = ?').run(userId);
       logged = true;
     }
@@ -73,20 +86,18 @@ async function pollUser(userId) {
   return { trnRP, delta, logged };
 }
 
-// Poll all users that have TRN linked, staggering requests by 2s each.
-async function pollAll() {
-  const linked = db
-    .prepare("SELECT user_id FROM prefs WHERE trn_username IS NOT NULL AND trn_username != ''")
-    .all();
+// Every minute: poll only the users in activeUsers.
+async function tick() {
+  if (activeUsers.size === 0) return;
 
-  for (const { user_id } of linked) {
+  for (const userId of activeUsers) {
     try {
-      await pollUser(user_id);
+      await pollUser(userId);
     } catch (e) {
-      console.error(`[poller] user ${user_id}: ${e.message}`);
+      console.error(`[poller] user ${userId}: ${e.message}`);
     }
-    // Space out requests to respect rate limits
-    await new Promise(r => setTimeout(r, 2000));
+    // 2s gap between users to be polite to TRN
+    if (activeUsers.size > 1) await new Promise(r => setTimeout(r, 2000));
   }
 }
 
@@ -95,9 +106,8 @@ function startPoller() {
     console.log('[poller] TRN_API_KEY not set — auto-sync disabled');
     return;
   }
-  console.log(`[poller] Auto-sync every ${POLL_INTERVAL_MS / 60000}m`);
-  pollAll();
-  setInterval(pollAll, POLL_INTERVAL_MS);
+  console.log('[poller] Ready (1min interval, polling off until user enables)');
+  setInterval(tick, POLL_INTERVAL_MS);
 }
 
-module.exports = { startPoller, pollUser, fetchPlayerRP };
+module.exports = { startPoller, pollUser, fetchPlayerRP, startPollingForUser, stopPollingForUser, isPollingActive };
