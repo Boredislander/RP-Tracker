@@ -41,4 +41,25 @@ db.exec(`
   );
 `);
 
+// Migrate: add TRN auto-sync columns if they don't exist yet
+for (const col of [
+  'trn_platform TEXT',
+  'trn_username TEXT',
+  'last_known_rp INTEGER',
+  'last_sync_at TEXT',
+]) {
+  try {
+    db.prepare(`ALTER TABLE prefs ADD COLUMN ${col}`).run();
+  } catch {
+    // Column already exists — safe to ignore
+  }
+}
+
+// Migrate: add auto_logged flag to sessions
+try {
+  db.prepare('ALTER TABLE sessions ADD COLUMN auto_logged INTEGER NOT NULL DEFAULT 0').run();
+} catch {
+  // Already exists
+}
+
 module.exports = db;

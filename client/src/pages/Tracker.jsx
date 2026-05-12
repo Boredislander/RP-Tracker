@@ -257,6 +257,80 @@ function ResetModal({ onClose, onCommit }) {
   );
 }
 
+// ── Link Account Modal ────────────────────────────────────────────────────────
+
+function LinkModal({ onClose, onLinked }) {
+  const [platform, setPlatform] = useState('origin');
+  const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function submit() {
+    if (!username.trim()) { setErr('Enter your Apex username'); return; }
+    setLoading(true);
+    try {
+      const res = await api.linkAccount(platform, username.trim());
+      onLinked({ platform, username: username.trim(), last_sync_at: new Date().toISOString(), last_known_rp: res.trnRP });
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={css.overlay}>
+      <div style={css.modal}>
+        <button style={css.modalClose} onClick={onClose}>✕</button>
+        <div style={css.modalTitle}>Link Apex Account</div>
+        <p style={css.modalDesc}>
+          Connect your Tracker.gg profile. The server will poll every 5 minutes and auto-log RP changes.
+        </p>
+
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ ...css.tag, marginBottom: '6px' }}>Platform</div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {['origin', 'psn', 'xbl'].map(p => (
+              <button
+                key={p}
+                onClick={() => setPlatform(p)}
+                style={{
+                  flex: 1, padding: '8px', borderRadius: '6px', cursor: 'pointer',
+                  fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', fontWeight: 600,
+                  letterSpacing: '1px', textTransform: 'uppercase',
+                  background: platform === p ? '#e91e63' : '#080810',
+                  border: `1px solid ${platform === p ? '#e91e63' : '#1a1a2e'}`,
+                  color: platform === p ? '#fff' : '#555',
+                }}
+              >
+                {p === 'origin' ? 'PC' : p === 'psn' ? 'PS' : 'Xbox'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ ...css.tag, marginBottom: '6px' }}>
+          {platform === 'origin' ? 'EA / Origin Username' : platform === 'psn' ? 'PSN ID' : 'Xbox Gamertag'}
+        </div>
+        <input
+          style={{ ...css.modalInput, fontSize: '18px', marginBottom: '16px' }}
+          type="text"
+          placeholder="Your username"
+          value={username}
+          onChange={e => { setUsername(e.target.value); setErr(''); }}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          autoFocus
+        />
+        {err && <p style={{ color: '#e91e63', fontSize: '13px', marginBottom: '12px', fontFamily: 'Rajdhani, sans-serif' }}>{err}</p>}
+        <button style={{ ...css.modalBtn, opacity: loading ? 0.6 : 1 }} onClick={submit} disabled={loading}>
+          {loading ? 'Connecting...' : 'Link Account'}
+        </button>
+        <button style={css.modalBtnGhost} onClick={onClose}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function Tracker({ onAdminChange }) {
@@ -272,6 +346,10 @@ export default function Tracker({ onAdminChange }) {
   const [historyOpen, setHistoryOpen] = useState(true);
   const [expandedDays, setExpandedDays] = useState({});
   const [error, setError] = useState('');
+  const [trnLinked, setTrnLinked] = useState(null); // { platform, username, last_sync_at, last_known_rp }
+  const [trnEnabled, setTrnEnabled] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const readyToSave = useRef(false);
   const debounceTimer = useRef(null);
@@ -294,6 +372,15 @@ export default function Tracker({ onAdminChange }) {
         setSessions(sessionList);
         if (onAdminChange) onAdminChange(Boolean(me.user.is_admin));
         if (me.needsSetup) setShowSetup(true);
+        setTrnEnabled(Boolean(me.trnEnabled));
+        if (me.prefs.trn_username) {
+          setTrnLinked({
+            platform: me.prefs.trn_platform,
+            username: me.prefs.trn_username,
+            last_sync_at: me.prefs.last_sync_at,
+            last_known_rp: me.prefs.last_known_rp,
+          });
+        }
       } catch (e) {
         if (e.message === 'Unauthorized' || e.message === 'Invalid token') {
           localStorage.removeItem('token');
@@ -361,6 +448,33 @@ export default function Tracker({ onAdminChange }) {
       setSplitStartRP(res.split_start_rp);
       setOverrideRP(null);
       setShowReset(false);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  // ── TRN sync ──────────────────────────────────────────────────────────────
+  async function syncNow() {
+    setSyncing(true);
+    try {
+      const result = await api.syncNow();
+      if (result.logged) {
+        const freshSessions = await api.getSessions();
+        setSessions(freshSessions);
+        setOverrideRP(null);
+      }
+      setTrnLinked(prev => ({ ...prev, last_sync_at: new Date().toISOString(), last_known_rp: result.trnRP }));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function unlinkTRN() {
+    try {
+      await api.unlinkAccount();
+      setTrnLinked(null);
     } catch (e) {
       setError(e.message);
     }
@@ -501,6 +615,49 @@ export default function Tracker({ onAdminChange }) {
         </div>
       )}
 
+      {/* ── Auto-Sync Status ── */}
+      {trnEnabled && (
+        <div style={{ background: '#0d0d1a', border: '1px solid #1a1a2e', borderRadius: '10px', padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {trnLinked ? (
+            <>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50', flexShrink: 0, boxShadow: '0 0 6px #4caf50' }} />
+              <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', fontWeight: 600, color: '#888', flex: 1, minWidth: '120px' }}>
+                Auto-sync: <span style={{ color: '#e0e0e0' }}>{trnLinked.username}</span>
+                {trnLinked.last_sync_at && (
+                  <span style={{ color: '#555', marginLeft: '10px', fontSize: '12px' }}>
+                    · {formatTime(trnLinked.last_sync_at)}
+                  </span>
+                )}
+              </span>
+              <button
+                style={{ background: 'none', border: '1px solid #1a1a2e', borderRadius: '5px', color: '#888', fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '4px 12px', cursor: syncing ? 'default' : 'pointer', opacity: syncing ? 0.5 : 1 }}
+                onClick={syncNow}
+                disabled={syncing}
+              >
+                {syncing ? '...' : 'Sync Now'}
+              </button>
+              <button
+                style={{ background: 'none', border: 'none', color: '#333', fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', padding: '4px 8px' }}
+                onClick={unlinkTRN}
+              >
+                Unlink
+              </button>
+            </>
+          ) : (
+            <>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#333', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', color: '#555', flex: 1 }}>Auto-sync not linked</span>
+              <button
+                style={{ background: '#e91e63', border: 'none', borderRadius: '5px', color: '#fff', fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', padding: '6px 16px', cursor: 'pointer' }}
+                onClick={() => setShowLinkModal(true)}
+              >
+                Link Account
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ── Session Form ── */}
       <div style={css.formCard}>
         <div style={{ ...css.tag, marginBottom: '12px' }}>Log Session</div>
@@ -602,6 +759,12 @@ export default function Tracker({ onAdminChange }) {
       )}
       {showReset && (
         <ResetModal onClose={() => setShowReset(false)} onCommit={commitReset} />
+      )}
+      {showLinkModal && (
+        <LinkModal
+          onClose={() => setShowLinkModal(false)}
+          onLinked={info => { setTrnLinked(info); setShowLinkModal(false); }}
+        />
       )}
     </div>
   );

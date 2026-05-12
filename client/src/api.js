@@ -42,6 +42,10 @@ export const api = {
 
   submitSetup: (current_rp) => request('POST', '/setup', { current_rp }),
 
+  linkAccount: (platform, username) => request('POST', '/link', { platform, username }),
+  unlinkAccount: () => request('DELETE', '/link'),
+  syncNow: () => request('POST', '/sync'),
+
   getLeaderboard: () => request('GET', '/leaderboard'),
 
   getHistory: () => request('GET', '/history'),

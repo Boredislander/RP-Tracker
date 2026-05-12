@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const db = require('./db');
 const { sign, middleware, adminOnly } = require('./auth');
+const { startPoller, pollUser, fetchPlayerRP } = require('./poller');
 
 const app = express();
 app.use(express.json());
@@ -133,7 +134,12 @@ app.get('/api/me', middleware, (req, res) => {
       override_rp: prefs.override_rp,
       split_start_rp: prefs.split_start_rp,
       last_split: prefs.last_split,
+      trn_platform: prefs.trn_platform ?? null,
+      trn_username: prefs.trn_username ?? null,
+      last_known_rp: prefs.last_known_rp ?? null,
+      last_sync_at: prefs.last_sync_at ?? null,
     },
+    trnEnabled: Boolean(process.env.TRN_API_KEY),
     split,
     splits: SPLITS,
     currentRP,
@@ -293,6 +299,56 @@ app.patch('/api/admin/prefs/:userId', middleware, adminOnly, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── TRN Auto-Sync ─────────────────────────────────────────────────────────────
+
+// Link (or update) TRN account. Fetches current RP to seed last_known_rp.
+app.post('/api/link', middleware, async (req, res) => {
+  const { platform, username } = req.body;
+  if (!platform || !username) return res.status(400).json({ error: 'platform and username required' });
+  if (!['origin', 'xbl', 'psn'].includes(platform)) {
+    return res.status(400).json({ error: 'platform must be origin, xbl, or psn' });
+  }
+  if (!process.env.TRN_API_KEY) {
+    return res.status(503).json({ error: 'TRN API key not configured on server' });
+  }
+
+  try {
+    const trnRP = await fetchPlayerRP(platform, username);
+    if (trnRP == null) return res.status(422).json({ error: 'Could not read ranked RP from TRN profile' });
+
+    ensurePrefs(req.user.id);
+    db.prepare(
+      'UPDATE prefs SET trn_platform = ?, trn_username = ?, last_known_rp = ?, last_sync_at = ? WHERE user_id = ?'
+    ).run(platform, username, trnRP, new Date().toISOString(), req.user.id);
+
+    res.json({ ok: true, trnRP });
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// Unlink TRN account.
+app.delete('/api/link', middleware, (req, res) => {
+  db.prepare(
+    'UPDATE prefs SET trn_platform = NULL, trn_username = NULL, last_known_rp = NULL, last_sync_at = NULL WHERE user_id = ?'
+  ).run(req.user.id);
+  res.json({ ok: true });
+});
+
+// Manual sync — polls TRN immediately for the current user.
+app.post('/api/sync', middleware, async (req, res) => {
+  if (!process.env.TRN_API_KEY) {
+    return res.status(503).json({ error: 'TRN API key not configured on server' });
+  }
+  try {
+    const result = await pollUser(req.user.id);
+    if (!result) return res.status(400).json({ error: 'No TRN account linked' });
+    res.json(result);
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
 // ── Static ────────────────────────────────────────────────────────────────────
 
 if (process.env.NODE_ENV === 'production') {
@@ -303,4 +359,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Apex Tracker running on :${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Apex Tracker running on :${PORT}`);
+  startPoller();
+});
