@@ -4,11 +4,10 @@ function token() {
   return localStorage.getItem('token');
 }
 
-function headers(extra = {}) {
+function headers() {
   return {
     'Content-Type': 'application/json',
     ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
-    ...extra,
   };
 }
 
@@ -24,32 +23,14 @@ async function request(method, path, body) {
 }
 
 export const api = {
-  register: (username, password) =>
-    request('POST', '/register', { username, password }),
-
-  login: (username, password) =>
-    request('POST', '/login', { username, password }),
-
+  register: (username, password) => request('POST', '/register', { username, password }),
+  login: (username, password) => request('POST', '/login', { username, password }),
   getMe: () => request('GET', '/me'),
-
   getSessions: () => request('GET', '/sessions'),
-
-  addSession: (rp) => request('POST', '/sessions', { rp }),
-
-  deleteSession: (id) => request('DELETE', `/sessions/${id}`),
-
   savePrefs: (prefs) => request('POST', '/prefs', prefs),
-
-  submitSetup: (current_rp) => request('POST', '/setup', { current_rp }),
-
   linkAccount: (platform, username) => request('POST', '/link', { platform, username }),
   unlinkAccount: () => request('DELETE', '/link'),
-  syncNow: () => request('POST', '/sync'),
-  startPolling: () => request('POST', '/polling/start'),
-  stopPolling: () => request('POST', '/polling/stop'),
-
   getLeaderboard: () => request('GET', '/leaderboard'),
-
   getHistory: () => request('GET', '/history'),
 
   admin: {

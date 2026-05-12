@@ -5,8 +5,6 @@ import { api } from '../api.js';
 
 const STARTING_RP = 1250;
 
-// Tier boundaries: Bronze IV (1000-1749) contains STARTING_RP=1250
-// Platinum IV starts at 9000, so 9810 lands in Platinum IV
 const TIERS = [
   { name: 'Bronze',   color: '#cd7f32', divs: 4, width: 750,  start: 1000  },
   { name: 'Silver',   color: '#a8b2c0', divs: 4, width: 750,  start: 4000  },
@@ -37,15 +35,11 @@ function getRankInfo(rp) {
       const divIdx = Math.min(Math.floor(offset / tier.width), tier.divs - 1);
       const divFloor = tier.start + divIdx * tier.width;
       const divCeil = divFloor + tier.width;
-      const progress = ((rp - divFloor) / tier.width) * 100;
       return {
-        tier,
-        div: DIV_NAMES[divIdx],
+        tier, div: DIV_NAMES[divIdx],
         label: `${tier.name} ${DIV_NAMES[divIdx]}`,
-        color: tier.color,
-        floorRP: divFloor,
-        ceilRP: divCeil,
-        progress: Math.min(100, Math.max(0, progress)),
+        color: tier.color, floorRP: divFloor, ceilRP: divCeil,
+        progress: Math.min(100, Math.max(0, ((rp - divFloor) / tier.width) * 100)),
       };
     }
   }
@@ -57,88 +51,29 @@ function getRankInfo(rp) {
 const css = {
   page: { maxWidth: 820, margin: '0 auto', padding: '24px 16px 48px' },
   tag: { fontSize: '11px', letterSpacing: '2px', color: '#555', textTransform: 'uppercase', fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 },
-
-  // Hero card
-  heroCard: { background: '#0d0d1a', border: '1px solid #1a1a2e', borderRadius: '12px', padding: '24px', marginBottom: '16px', position: 'relative' },
+  heroCard: { background: '#0d0d1a', border: '1px solid #1a1a2e', borderRadius: '12px', padding: '24px', marginBottom: '16px' },
   heroRp: { fontFamily: 'Orbitron, sans-serif', fontSize: '56px', fontWeight: 900, lineHeight: 1, letterSpacing: '-1px' },
   heroLabel: { fontSize: '11px', letterSpacing: '2px', color: '#555', textTransform: 'uppercase', fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, marginBottom: '6px' },
   heroRankBadge: { fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, letterSpacing: '1px' },
-
-  // Progress bar
   barTrack: { height: '6px', background: '#1a1a2e', borderRadius: '3px', overflow: 'hidden', marginTop: '8px' },
   barFill: (pct, color) => ({ height: '100%', width: `${pct}%`, background: color, borderRadius: '3px', transition: 'width 0.4s ease' }),
-
-  // Goal section
-  goalRow: { display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px' },
-  goalSelect: {
-    background: '#080810', border: '1px solid #1a1a2e', borderRadius: '6px',
-    color: '#e0e0e0', fontFamily: 'Rajdhani, sans-serif', fontSize: '13px',
-    letterSpacing: '1px', padding: '5px 10px', cursor: 'pointer', outline: 'none',
-  },
-
-  // Pace grid
+  goalSelect: { background: '#080810', border: '1px solid #1a1a2e', borderRadius: '6px', color: '#e0e0e0', fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', letterSpacing: '1px', padding: '5px 10px', cursor: 'pointer', outline: 'none' },
   paceGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' },
   paceCard: { background: '#0d0d1a', border: '1px solid #1a1a2e', borderRadius: '10px', padding: '16px 14px' },
   paceValue: { fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 700, lineHeight: 1, marginBottom: '6px' },
   paceLabel: { fontSize: '10px', letterSpacing: '2px', color: '#555', textTransform: 'uppercase', fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 },
-
-  // Session form
-  formCard: { background: '#0d0d1a', border: '1px solid #1a1a2e', borderRadius: '10px', padding: '20px', marginBottom: '16px' },
-  rpInput: {
-    width: '130px', background: '#080810', border: '1px solid #1a1a2e', borderRadius: '6px',
-    padding: '10px 14px', color: '#e0e0e0', fontFamily: 'Orbitron, sans-serif',
-    fontSize: '20px', outline: 'none', textAlign: 'center',
-  },
-  addBtn: {
-    padding: '10px 24px', background: '#e91e63', border: 'none', borderRadius: '6px',
-    color: '#fff', fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700,
-    letterSpacing: '1px', cursor: 'pointer', transition: 'opacity 0.15s',
-  },
-
-  // Session history
   historyCard: { background: '#0d0d1a', border: '1px solid #1a1a2e', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' },
   historyHeader: { padding: '14px 20px', borderBottom: '1px solid #1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' },
   sessionRow: { display: 'flex', alignItems: 'center', padding: '11px 20px', borderBottom: '1px solid #0f0f20' },
-
-  // Modals
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' },
   modal: { background: '#0d0d1a', border: '1px solid #1a1a2e', borderRadius: '12px', padding: '32px', width: '100%', maxWidth: '420px', position: 'relative' },
   modalClose: { position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: '#555', fontSize: '18px', cursor: 'pointer', lineHeight: 1, padding: '4px 8px' },
   modalTitle: { fontFamily: 'Orbitron, sans-serif', fontSize: '16px', fontWeight: 700, letterSpacing: '1px', marginBottom: '8px' },
   modalDesc: { fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', color: '#888', lineHeight: 1.6, marginBottom: '24px' },
-  modalInput: {
-    width: '100%', background: '#080810', border: '1px solid #1a1a2e', borderRadius: '6px',
-    padding: '12px 16px', color: '#e0e0e0', fontFamily: 'Orbitron, sans-serif',
-    fontSize: '22px', textAlign: 'center', outline: 'none', marginBottom: '16px',
-  },
+  modalInput: { width: '100%', background: '#080810', border: '1px solid #1a1a2e', borderRadius: '6px', padding: '12px 16px', color: '#e0e0e0', fontFamily: 'Orbitron, sans-serif', fontSize: '18px', textAlign: 'center', outline: 'none', marginBottom: '16px' },
   modalBtn: { width: '100%', padding: '12px', background: '#e91e63', border: 'none', borderRadius: '6px', color: '#fff', fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, letterSpacing: '2px', cursor: 'pointer' },
   modalBtnGhost: { width: '100%', padding: '12px', background: 'none', border: '1px solid #1a1a2e', borderRadius: '6px', color: '#888', fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', letterSpacing: '2px', cursor: 'pointer', marginTop: '8px' },
 };
-
-// ── Tooltip ───────────────────────────────────────────────────────────────────
-
-function Tooltip({ text }) {
-  const [show, setShow] = useState(false);
-  return (
-    <span
-      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: '6px', cursor: 'default' }}
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
-      <span style={{ fontSize: '11px', color: '#444', lineHeight: 1 }}>ⓘ</span>
-      {show && (
-        <span style={{
-          position: 'absolute', left: '50%', bottom: 'calc(100% + 6px)', transform: 'translateX(-50%)',
-          background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: '6px',
-          padding: '6px 10px', color: '#aaa', fontSize: '12px', whiteSpace: 'nowrap',
-          fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.5px', zIndex: 10, pointerEvents: 'none',
-        }}>
-          {text}
-        </span>
-      )}
-    </span>
-  );
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -151,8 +86,7 @@ function formatTime(iso) {
 }
 
 function isToday(iso) {
-  const d = new Date(iso);
-  const n = new Date();
+  const d = new Date(iso), n = new Date();
   return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
 }
 
@@ -167,8 +101,7 @@ function groupSessionsByDay(sessions) {
 }
 
 function daysLeft(splitEnd) {
-  const ms = new Date(splitEnd) - new Date();
-  return Math.max(0, Math.ceil(ms / 86400000));
+  return Math.max(0, Math.ceil((new Date(splitEnd) - new Date()) / 86400000));
 }
 
 function avgRpPerDay(sessions) {
@@ -178,83 +111,15 @@ function avgRpPerDay(sessions) {
     const key = new Date(s.timestamp).toDateString();
     byDay[key] = (byDay[key] || 0) + s.rp;
   }
-  const days = Object.values(byDay);
-  return days.reduce((a, b) => a + b, 0) / days.length;
+  const vals = Object.values(byDay);
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-// ── Setup Modal ───────────────────────────────────────────────────────────────
-
-function SetupModal({ splitLabel, onCommit }) {
-  const [val, setVal] = useState('');
-  const [err, setErr] = useState('');
-
-  function commit() {
-    const n = parseInt(val, 10);
-    if (isNaN(n) || n < 0) { setErr('Enter a valid RP value'); return; }
-    onCommit(n);
-  }
-
-  return (
-    <div style={css.overlay}>
-      <div style={css.modal}>
-        <div style={{ ...css.tag, marginBottom: '6px' }}>{splitLabel}</div>
-        <div style={css.modalTitle}>What's your current in-game RP?</div>
-        <p style={css.modalDesc}>
-          Enter the RP shown on your Apex rank screen right now. This anchors the tracker to your actual rank.
-        </p>
-        <input
-          style={css.modalInput}
-          type="number"
-          placeholder="e.g. 9810"
-          value={val}
-          onChange={e => { setVal(e.target.value); setErr(''); }}
-          onKeyDown={e => e.key === 'Enter' && commit()}
-          autoFocus
-        />
-        {err && <p style={{ color: '#e91e63', fontSize: '13px', marginBottom: '12px', fontFamily: 'Rajdhani, sans-serif' }}>{err}</p>}
-        <button style={css.modalBtn} onClick={commit}>Set Baseline</button>
-      </div>
-    </div>
-  );
-}
-
-// ── Reset Modal ───────────────────────────────────────────────────────────────
-
-function ResetModal({ onClose, onCommit }) {
-  const [val, setVal] = useState('');
-  const [err, setErr] = useState('');
-
-  function commit() {
-    const n = parseInt(val, 10);
-    if (isNaN(n) || n < 0) { setErr('Enter a valid RP value'); return; }
-    onCommit(n);
-  }
-
-  return (
-    <div style={css.overlay}>
-      <div style={css.modal}>
-        <button style={css.modalClose} onClick={onClose}>✕</button>
-        <div style={css.modalTitle}>Reset Baseline</div>
-        <p style={css.modalDesc}>
-          Enter your actual in-game RP to re-anchor the tracker. Use this to correct drift after a browser
-          cache issue or manual override.
-          <Tooltip text="split_start_rp = entered RP − session sum" />
-        </p>
-        <input
-          style={css.modalInput}
-          type="number"
-          placeholder="Current in-game RP"
-          value={val}
-          onChange={e => { setVal(e.target.value); setErr(''); }}
-          onKeyDown={e => e.key === 'Enter' && commit()}
-          autoFocus
-        />
-        {err && <p style={{ color: '#e91e63', fontSize: '13px', marginBottom: '12px', fontFamily: 'Rajdhani, sans-serif' }}>{err}</p>}
-        <button style={css.modalBtn} onClick={commit}>Confirm Reset</button>
-        <button style={css.modalBtnGhost} onClick={onClose}>Cancel</button>
-      </div>
-    </div>
-  );
+function timeSince(iso) {
+  const secs = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  return `${Math.floor(secs / 3600)}h ago`;
 }
 
 // ── Link Account Modal ────────────────────────────────────────────────────────
@@ -284,11 +149,11 @@ function LinkModal({ onClose, onLinked }) {
         <button style={css.modalClose} onClick={onClose}>✕</button>
         <div style={css.modalTitle}>Link Apex Account</div>
         <p style={css.modalDesc}>
-          Connect your Tracker.gg profile. The server will poll every 5 minutes and auto-log RP changes.
+          Enter your Apex username. The tracker will automatically detect RP changes every minute.
         </p>
 
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ ...css.tag, marginBottom: '6px' }}>Platform</div>
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ ...css.tag, marginBottom: '8px' }}>Platform</div>
           <div style={{ display: 'flex', gap: '8px' }}>
             {['origin', 'psn', 'xbl'].map(p => (
               <button
@@ -297,10 +162,10 @@ function LinkModal({ onClose, onLinked }) {
                 style={{
                   flex: 1, padding: '8px', borderRadius: '6px', cursor: 'pointer',
                   fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', fontWeight: 600,
-                  letterSpacing: '1px', textTransform: 'uppercase',
+                  letterSpacing: '1px', textTransform: 'uppercase', border: 'none',
                   background: platform === p ? '#e91e63' : '#080810',
-                  border: `1px solid ${platform === p ? '#e91e63' : '#1a1a2e'}`,
                   color: platform === p ? '#fff' : '#555',
+                  outline: platform === p ? 'none' : '1px solid #1a1a2e',
                 }}
               >
                 {p === 'origin' ? 'PC' : p === 'psn' ? 'PS' : 'Xbox'}
@@ -313,7 +178,7 @@ function LinkModal({ onClose, onLinked }) {
           {platform === 'origin' ? 'EA / Origin Username' : platform === 'psn' ? 'PSN ID' : 'Xbox Gamertag'}
         </div>
         <input
-          style={{ ...css.modalInput, fontSize: '18px', marginBottom: '16px' }}
+          style={css.modalInput}
           type="text"
           placeholder="Your username"
           value={username}
@@ -335,46 +200,39 @@ function LinkModal({ onClose, onLinked }) {
 
 export default function Tracker({ onAdminChange }) {
   const [sessions, setSessions] = useState([]);
-  const [overrideRP, setOverrideRP] = useState(null);
   const [splitStartRP, setSplitStartRP] = useState(null);
   const [activeGoal, setActiveGoal] = useState('');
   const [split, setSplit] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [rpInput, setRpInput] = useState('');
-  const [showSetup, setShowSetup] = useState(false);
-  const [showReset, setShowReset] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [expandedDays, setExpandedDays] = useState({});
   const [error, setError] = useState('');
-  const [trnLinked, setTrnLinked] = useState(null); // { platform, username, last_sync_at, last_known_rp }
+  const [trnLinked, setTrnLinked] = useState(null);
   const [trnEnabled, setTrnEnabled] = useState(false);
-  const [pollingActive, setPollingActive] = useState(false);
+  const [ready, setReady] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [syncTick, setSyncTick] = useState(0); // bump to force refresh
 
   const readyToSave = useRef(false);
   const debounceTimer = useRef(null);
 
-  // ── Derived RP — never useState, always computed ──────────────────────────
+  // ── Derived RP — always computed, never state ─────────────────────────────
   const baseRP = splitStartRP ?? STARTING_RP;
-  const derivedRP = sessions.reduce((sum, s) => sum + s.rp, baseRP);
-  const currentRP = overrideRP ?? derivedRP;
+  const currentRP = sessions.reduce((sum, s) => sum + s.rp, baseRP);
   const rank = getRankInfo(currentRP);
 
-  // ── Load ──────────────────────────────────────────────────────────────────
+  // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
     async function load() {
       try {
         const [me, sessionList] = await Promise.all([api.getMe(), api.getSessions()]);
         setSplit(me.split);
         setSplitStartRP(me.prefs.split_start_rp);
-        setOverrideRP(me.prefs.override_rp ?? null);
         setActiveGoal(me.prefs.goal ?? '');
         setSessions(sessionList);
-        if (onAdminChange) onAdminChange(Boolean(me.user.is_admin));
-        if (me.needsSetup) setShowSetup(true);
         setTrnEnabled(Boolean(me.trnEnabled));
-        setPollingActive(Boolean(me.pollingActive));
+        setReady(Boolean(me.ready));
+        if (onAdminChange) onAdminChange(Boolean(me.user.is_admin));
         if (me.prefs.trn_username) {
           setTrnLinked({
             platform: me.prefs.trn_platform,
@@ -387,6 +245,7 @@ export default function Tracker({ onAdminChange }) {
         if (e.message === 'Unauthorized' || e.message === 'Invalid token') {
           localStorage.removeItem('token');
           window.location.href = '/login';
+          return;
         }
         setError(e.message);
       } finally {
@@ -397,111 +256,55 @@ export default function Tracker({ onAdminChange }) {
     load();
   }, []);
 
-  // ── Debounced prefs save ──────────────────────────────────────────────────
+  // ── Client-side refresh every 30s to pick up auto-logged sessions ─────────
+  useEffect(() => {
+    if (loading) return;
+    const interval = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const [me, sessionList] = await Promise.all([api.getMe(), api.getSessions()]);
+        setSessions(sessionList);
+        setSplitStartRP(me.prefs.split_start_rp);
+        setReady(Boolean(me.ready));
+        if (me.prefs.trn_username) {
+          setTrnLinked(prev => ({
+            ...prev,
+            last_sync_at: me.prefs.last_sync_at,
+            last_known_rp: me.prefs.last_known_rp,
+          }));
+        }
+      } catch {
+        // silent — don't surface refresh errors to the user
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  // ── Debounced goal save ───────────────────────────────────────────────────
   useEffect(() => {
     if (!readyToSave.current) return;
     clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
-      api.savePrefs({ goal: activeGoal || null, override_rp: overrideRP }).catch(() => {});
+      api.savePrefs({ goal: activeGoal || null }).catch(() => {});
     }, 600);
     return () => clearTimeout(debounceTimer.current);
-  }, [activeGoal, overrideRP]);
+  }, [activeGoal]);
 
-  // ── Setup commit ──────────────────────────────────────────────────────────
-  async function commitSetup(currentInGameRP) {
-    try {
-      const res = await api.submitSetup(currentInGameRP);
-      setSplitStartRP(res.split_start_rp);
-      setOverrideRP(null);
-      setShowSetup(false);
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  // ── Session actions ───────────────────────────────────────────────────────
-  async function handleSubmit(e) {
-    e.preventDefault();
-    const rp = parseInt(rpInput, 10);
-    if (isNaN(rp)) return;
-    try {
-      const newSession = await api.addSession(rp);
-      setSessions(prev => [newSession, ...prev]);
-      setOverrideRP(null);
-      setRpInput('');
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  const removeSession = useCallback(async (id) => {
-    try {
-      await api.deleteSession(id);
-      setSessions(prev => prev.filter(s => s.id !== id));
-    } catch (e) {
-      setError(e.message);
-    }
-  }, []);
-
-  // ── Reset baseline ────────────────────────────────────────────────────────
-  async function commitReset(currentInGameRP) {
-    try {
-      const res = await api.submitSetup(currentInGameRP);
-      setSplitStartRP(res.split_start_rp);
-      setOverrideRP(null);
-      setShowReset(false);
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  // ── TRN sync ──────────────────────────────────────────────────────────────
-  async function syncNow() {
-    setSyncing(true);
-    try {
-      const result = await api.syncNow();
-      if (result.logged) {
-        const freshSessions = await api.getSessions();
-        setSessions(freshSessions);
-        setOverrideRP(null);
-      }
-      setTrnLinked(prev => ({ ...prev, last_sync_at: new Date().toISOString(), last_known_rp: result.trnRP }));
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setSyncing(false);
-    }
-  }
-
+  // ── Unlink ────────────────────────────────────────────────────────────────
   async function unlinkTRN() {
     try {
       await api.unlinkAccount();
       setTrnLinked(null);
-      setPollingActive(false);
+      setReady(false);
     } catch (e) {
       setError(e.message);
     }
   }
 
-  async function togglePolling() {
-    try {
-      if (pollingActive) {
-        await api.stopPolling();
-        setPollingActive(false);
-      } else {
-        await api.startPolling();
-        setPollingActive(true);
-      }
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  // ── Pacing calculations ───────────────────────────────────────────────────
+  // ── Pacing ────────────────────────────────────────────────────────────────
   const goal = GOALS.find(g => g.label === activeGoal);
   const splitEnd = split?.end;
   const dLeft = splitEnd ? daysLeft(splitEnd) : null;
-  const rpGained = sessions.reduce((sum, s) => sum + s.rp, 0);
   const rpNeeded = goal ? Math.max(0, goal.rp - currentRP) : null;
   const rpPerDay = dLeft && rpNeeded !== null && dLeft > 0 ? Math.ceil(rpNeeded / dLeft) : null;
   const rpPerWeek = rpPerDay !== null ? rpPerDay * 7 : null;
@@ -511,17 +314,50 @@ export default function Tracker({ onAdminChange }) {
   const estimatedDate = estimatedDays != null ? new Date(Date.now() + estimatedDays * 86400000) : null;
   const splitEndDate = splitEnd ? new Date(splitEnd) : null;
   const behindPace = estimatedDate && splitEndDate && estimatedDate > splitEndDate;
-
   const dailyDeficit = rpPerDay !== null && avg > 0 ? Math.max(0, rpPerDay - avg) : null;
 
   // ── Render ────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', color: '#333', letterSpacing: '2px' }}>LOADING...</span>
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', color: '#333', letterSpacing: '2px' }}>LOADING...</span>
+    </div>
+  );
+
+  // Not linked — show onboarding prompt
+  if (trnEnabled && !trnLinked) return (
+    <div style={{ ...css.page, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center' }}>
+      <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '15px', fontWeight: 700, color: '#e0e0e0', letterSpacing: '1px', marginBottom: '12px' }}>
+        Link your Apex account
       </div>
-    );
-  }
+      <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '15px', color: '#555', maxWidth: '320px', lineHeight: 1.6, marginBottom: '28px' }}>
+        Connect to Tracker.gg and your RP will be tracked automatically after every match.
+      </p>
+      <button
+        style={{ ...css.modalBtn, width: 'auto', padding: '12px 32px' }}
+        onClick={() => setShowLinkModal(true)}
+      >
+        Link Account
+      </button>
+      {showLinkModal && (
+        <LinkModal
+          onClose={() => setShowLinkModal(false)}
+          onLinked={info => { setTrnLinked(info); setReady(false); setShowLinkModal(false); }}
+        />
+      )}
+    </div>
+  );
+
+  // Linked but baseline not yet set (waiting for first poller tick)
+  if (trnLinked && !ready) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center' }}>
+      <div style={{ width: '32px', height: '32px', border: '3px solid #1a1a2e', borderTopColor: '#4caf50', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '20px' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', color: '#555', letterSpacing: '2px' }}>SYNCING...</div>
+      <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', color: '#333', marginTop: '8px' }}>
+        First sync in progress — usually under 1 minute
+      </p>
+    </div>
+  );
 
   const dayGroups = groupSessionsByDay(sessions);
 
@@ -536,7 +372,6 @@ export default function Tracker({ onAdminChange }) {
       {/* ── Hero + Goal Card ── */}
       <div style={css.heroCard}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-          {/* Left: RP + rank */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={css.heroLabel}>Current RP</div>
             <div style={{ ...css.heroRp, color: rank.color }}>{currentRP.toLocaleString()}</div>
@@ -547,12 +382,6 @@ export default function Tracker({ onAdminChange }) {
                   {rank.floorRP.toLocaleString()} → {rank.ceilRP?.toLocaleString()}
                 </span>
               )}
-              <button
-                style={{ marginLeft: 'auto', background: 'none', border: '1px solid #1a1a2e', borderRadius: '5px', color: '#555', fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '4px 10px', cursor: 'pointer' }}
-                onClick={() => setShowReset(true)}
-              >
-                EDIT <Tooltip text="Re-anchor to your actual in-game RP" />
-              </button>
             </div>
             {rank.progress !== null && (
               <div style={css.barTrack}>
@@ -561,7 +390,6 @@ export default function Tracker({ onAdminChange }) {
             )}
           </div>
 
-          {/* Right: Goal selector */}
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div style={{ ...css.tag, marginBottom: '6px' }}>Goal</div>
             <select
@@ -577,7 +405,6 @@ export default function Tracker({ onAdminChange }) {
           </div>
         </div>
 
-        {/* Goal progress bar */}
         {goal && (
           <div style={{ marginTop: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -590,7 +417,7 @@ export default function Tracker({ onAdminChange }) {
               <div style={css.barFill(Math.min(100, (currentRP / goal.rp) * 100), getRankInfo(goal.rp).color)} />
             </div>
             {estimatedDate && (
-              <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ marginTop: '8px' }}>
                 <span style={{ ...css.tag, color: behindPace ? '#e91e63' : '#555' }}>
                   {behindPace ? '⚠ ' : ''}Est. {estimatedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   {behindPace && splitEndDate ? ` · Split ends ${formatDate(splitEnd)}` : ''}
@@ -633,94 +460,28 @@ export default function Tracker({ onAdminChange }) {
       )}
 
       {/* ── Auto-Sync Status ── */}
-      {trnEnabled && (
-        <div style={{ background: '#0d0d1a', border: `1px solid ${pollingActive ? 'rgba(76,175,80,0.3)' : '#1a1a2e'}`, borderRadius: '10px', padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {trnLinked ? (
-            <>
-              {/* Status dot */}
-              <span style={{
-                width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
-                background: pollingActive ? '#4caf50' : '#555',
-                boxShadow: pollingActive ? '0 0 6px #4caf50' : 'none',
-              }} />
-
-              {/* Username + last sync */}
-              <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', fontWeight: 600, color: '#888', flex: 1, minWidth: '100px' }}>
-                <span style={{ color: '#e0e0e0' }}>{trnLinked.username}</span>
-                {pollingActive && <span style={{ color: '#4caf50', marginLeft: '8px', fontSize: '11px', letterSpacing: '1px' }}>· 1min</span>}
-                {!pollingActive && trnLinked.last_sync_at && (
-                  <span style={{ color: '#444', marginLeft: '8px', fontSize: '11px' }}>· {formatTime(trnLinked.last_sync_at)}</span>
-                )}
+      {trnLinked && (
+        <div style={{ background: '#0d0d1a', border: '1px solid rgba(76,175,80,0.25)', borderRadius: '10px', padding: '12px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#4caf50', flexShrink: 0, boxShadow: '0 0 5px #4caf50' }} />
+          <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', fontWeight: 600, flex: 1 }}>
+            <span style={{ color: '#e0e0e0' }}>{trnLinked.username}</span>
+            <span style={{ color: '#4caf50', marginLeft: '8px', fontSize: '11px', letterSpacing: '1px' }}>· auto</span>
+            {trnLinked.last_sync_at && (
+              <span style={{ color: '#444', marginLeft: '8px', fontSize: '11px' }}>
+                · {timeSince(trnLinked.last_sync_at)}
               </span>
-
-              {/* Start / Stop */}
-              <button
-                style={{
-                  padding: '5px 16px', borderRadius: '5px', cursor: 'pointer',
-                  fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', fontWeight: 700,
-                  letterSpacing: '1.5px', textTransform: 'uppercase', border: 'none',
-                  background: pollingActive ? 'rgba(233,30,99,0.15)' : '#4caf50',
-                  color: pollingActive ? '#e91e63' : '#fff',
-                }}
-                onClick={togglePolling}
-              >
-                {pollingActive ? 'Stop' : 'Start'}
-              </button>
-
-              {/* Manual sync (only when not auto-polling) */}
-              {!pollingActive && (
-                <button
-                  style={{ background: 'none', border: '1px solid #1a1a2e', borderRadius: '5px', color: '#666', fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', letterSpacing: '1.5px', textTransform: 'uppercase', padding: '5px 12px', cursor: syncing ? 'default' : 'pointer', opacity: syncing ? 0.5 : 1 }}
-                  onClick={syncNow}
-                  disabled={syncing}
-                >
-                  {syncing ? '...' : 'Sync Now'}
-                </button>
-              )}
-
-              <button
-                style={{ background: 'none', border: 'none', color: '#2a2a4a', fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', padding: '4px 6px' }}
-                onClick={unlinkTRN}
-              >
-                Unlink
-              </button>
-            </>
-          ) : (
-            <>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#333', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', color: '#555', flex: 1 }}>Auto-sync not linked</span>
-              <button
-                style={{ background: '#e91e63', border: 'none', borderRadius: '5px', color: '#fff', fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', padding: '6px 16px', cursor: 'pointer' }}
-                onClick={() => setShowLinkModal(true)}
-              >
-                Link Account
-              </button>
-            </>
-          )}
+            )}
+          </span>
+          <button
+            style={{ background: 'none', border: 'none', color: '#2a2a4a', fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', padding: '4px 6px' }}
+            onClick={unlinkTRN}
+          >
+            Unlink
+          </button>
         </div>
       )}
 
-      {/* ── Session Form ── */}
-      <div style={css.formCard}>
-        <div style={{ ...css.tag, marginBottom: '12px' }}>Log Session</div>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            style={css.rpInput}
-            type="number"
-            placeholder="+/− RP"
-            value={rpInput}
-            onChange={e => setRpInput(e.target.value)}
-          />
-          <button style={css.addBtn} type="submit">ADD</button>
-          {rpInput !== '' && !isNaN(parseInt(rpInput)) && (
-            <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', color: '#555' }}>
-              → {(currentRP + parseInt(rpInput)).toLocaleString()} RP
-            </span>
-          )}
-        </form>
-      </div>
-
-      {/* ── Session History ── */}
+      {/* ── Session History (read-only) ── */}
       <div style={css.historyCard}>
         <div style={css.historyHeader} onClick={() => setHistoryOpen(o => !o)}>
           <span style={css.tag}>Session History ({sessions.length})</span>
@@ -730,8 +491,8 @@ export default function Tracker({ onAdminChange }) {
         {historyOpen && (
           <div>
             {dayGroups.length === 0 && (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#333', fontFamily: 'Rajdhani, sans-serif', fontSize: '14px' }}>
-                No sessions this split yet.
+              <div style={{ padding: '24px', textAlign: 'center', color: '#333', fontFamily: 'Rajdhani, sans-serif', fontSize: '14px' }}>
+                No sessions this split yet — RP changes will appear here automatically.
               </div>
             )}
 
@@ -742,18 +503,8 @@ export default function Tracker({ onAdminChange }) {
 
               return (
                 <div key={key}>
-                  {/* Day header */}
                   <div
-                    style={{
-                      padding: '9px 20px',
-                      background: '#0a0a15',
-                      borderBottom: '1px solid #1a1a2e',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      cursor: today ? 'default' : 'pointer',
-                      userSelect: 'none',
-                    }}
+                    style={{ padding: '9px 20px', background: '#0a0a15', borderBottom: '1px solid #1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: today ? 'default' : 'pointer', userSelect: 'none' }}
                     onClick={() => !today && setExpandedDays(p => ({ ...p, [key]: !p[key] }))}
                   >
                     <span style={{ ...css.tag, color: today ? '#888' : '#555' }}>
@@ -763,29 +514,19 @@ export default function Tracker({ onAdminChange }) {
                       <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', color: daySum >= 0 ? '#4caf50' : '#e91e63' }}>
                         {daySum >= 0 ? '+' : ''}{daySum}
                       </span>
-                      {!today && (
-                        <span style={{ color: '#333', fontSize: '12px' }}>{expanded ? '▲' : '▼'}</span>
-                      )}
+                      {!today && <span style={{ color: '#333', fontSize: '12px' }}>{expanded ? '▲' : '▼'}</span>}
                     </div>
                   </div>
 
-                  {/* Session rows */}
                   {expanded && list.map(s => (
                     <div key={s.id} style={css.sessionRow}>
                       <span style={{ ...css.tag, width: '70px' }}>{formatTime(s.timestamp)}</span>
                       <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '15px', flex: 1, color: s.rp >= 0 ? '#4caf50' : '#e91e63' }}>
                         {s.rp >= 0 ? '+' : ''}{s.rp}
                       </span>
-                      {today && (
-                        <button
-                          onClick={() => removeSession(s.id)}
-                          style={{ background: 'none', border: 'none', color: '#2a2a4a', fontSize: '16px', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: '4px', transition: 'color 0.15s' }}
-                          onMouseEnter={e => e.target.style.color = '#e91e63'}
-                          onMouseLeave={e => e.target.style.color = '#2a2a4a'}
-                        >
-                          ×
-                        </button>
-                      )}
+                      <span style={{ ...css.tag, fontSize: '10px', color: '#2a2a4a' }}>
+                        {s.auto_logged ? 'auto' : 'manual'}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -795,17 +536,10 @@ export default function Tracker({ onAdminChange }) {
         )}
       </div>
 
-      {/* ── Modals ── */}
-      {showSetup && split && (
-        <SetupModal splitLabel={split.label} onCommit={commitSetup} />
-      )}
-      {showReset && (
-        <ResetModal onClose={() => setShowReset(false)} onCommit={commitReset} />
-      )}
       {showLinkModal && (
         <LinkModal
           onClose={() => setShowLinkModal(false)}
-          onLinked={info => { setTrnLinked(info); setShowLinkModal(false); }}
+          onLinked={info => { setTrnLinked(info); setReady(false); setShowLinkModal(false); }}
         />
       )}
     </div>
