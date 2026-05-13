@@ -9,5 +9,4 @@ services:
       - ./data:/app/data
     environment:
       - NODE_ENV=production
-      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - TRN_API_KEY=${TRN_API_KEY:-}

@@ -79,6 +79,7 @@ app.get('/api/me', middleware, (req, res) => {
       trn_username: prefs.trn_username ?? null,
       last_known_rp: prefs.last_known_rp ?? null,
       last_sync_at: prefs.last_sync_at ?? null,
+      polling_active: Boolean(prefs.polling_active),
     },
     split,
     splits: SPLITS,
@@ -151,6 +152,20 @@ app.post('/api/link', middleware, async (req, res) => {
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
+});
+
+// ── Polling Control ───────────────────────────────────────────────────────────
+
+app.post('/api/polling/start', middleware, (req, res) => {
+  ensurePrefs(req.user.id);
+  db.prepare('UPDATE prefs SET polling_active = 1 WHERE user_id = ?').run(req.user.id);
+  res.json({ ok: true, polling_active: true });
+});
+
+app.post('/api/polling/stop', middleware, (req, res) => {
+  ensurePrefs(req.user.id);
+  db.prepare('UPDATE prefs SET polling_active = 0 WHERE user_id = ?').run(req.user.id);
+  res.json({ ok: true, polling_active: false });
 });
 
 app.delete('/api/link', middleware, (req, res) => {

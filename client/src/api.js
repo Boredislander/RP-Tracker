@@ -30,6 +30,8 @@ export const api = {
   savePrefs: (prefs) => request('POST', '/prefs', prefs),
   linkAccount: (platform, username) => request('POST', '/link', { platform, username }),
   unlinkAccount: () => request('DELETE', '/link'),
+  startPolling: () => request('POST', '/polling/start'),
+  stopPolling: () => request('POST', '/polling/stop'),
   getLeaderboard: () => request('GET', '/leaderboard'),
   getHistory: () => request('GET', '/history'),
 

@@ -94,10 +94,10 @@ async function pollUser(userId) {
   return { trnRP, delta, logged };
 }
 
-// Poll every linked user every minute.
+// Poll every linked user with polling enabled, every minute.
 async function tick() {
   const linked = db
-    .prepare("SELECT user_id FROM prefs WHERE trn_username IS NOT NULL AND trn_username != ''")
+    .prepare("SELECT user_id FROM prefs WHERE trn_username IS NOT NULL AND trn_username != '' AND polling_active = 1")
     .all();
 
   for (const { user_id } of linked) {
@@ -115,8 +115,7 @@ function startPoller() {
     console.log('[poller] TRN_API_KEY not set — auto-sync disabled');
     return;
   }
-  console.log('[poller] Started (1min, polling all linked users)');
-  tick(); // immediate first pass
+  console.log('[poller] Started (1min interval, polling users with polling_active=1)');
   setInterval(tick, POLL_INTERVAL_MS);
 }
 

@@ -15,6 +15,12 @@ db.exec(`
     is_admin INTEGER NOT NULL DEFAULT 0
   );
 
+  CREATE TABLE IF NOT EXISTS tokens (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -58,6 +64,13 @@ for (const col of [
 // Migrate: add auto_logged flag to sessions
 try {
   db.prepare('ALTER TABLE sessions ADD COLUMN auto_logged INTEGER NOT NULL DEFAULT 0').run();
+} catch {
+  // Already exists
+}
+
+// Migrate: add polling_active flag to prefs
+try {
+  db.prepare('ALTER TABLE prefs ADD COLUMN polling_active INTEGER NOT NULL DEFAULT 0').run();
 } catch {
   // Already exists
 }

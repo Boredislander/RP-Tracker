@@ -211,6 +211,8 @@ export default function Tracker({ onAdminChange }) {
   const [trnEnabled, setTrnEnabled] = useState(false);
   const [ready, setReady] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [pollingActive, setPollingActive] = useState(false);
+  const [pollToggling, setPollToggling] = useState(false);
   const [syncTick, setSyncTick] = useState(0); // bump to force refresh
 
   const readyToSave = useRef(false);
@@ -232,6 +234,7 @@ export default function Tracker({ onAdminChange }) {
         setSessions(sessionList);
         setTrnEnabled(Boolean(me.trnEnabled));
         setReady(Boolean(me.ready));
+        setPollingActive(Boolean(me.prefs.polling_active));
         if (onAdminChange) onAdminChange(Boolean(me.user.is_admin));
         if (me.prefs.trn_username) {
           setTrnLinked({
@@ -266,6 +269,7 @@ export default function Tracker({ onAdminChange }) {
         setSessions(sessionList);
         setSplitStartRP(me.prefs.split_start_rp);
         setReady(Boolean(me.ready));
+        setPollingActive(Boolean(me.prefs.polling_active));
         if (me.prefs.trn_username) {
           setTrnLinked(prev => ({
             ...prev,
@@ -298,6 +302,24 @@ export default function Tracker({ onAdminChange }) {
       setReady(false);
     } catch (e) {
       setError(e.message);
+    }
+  }
+
+  // ── Polling toggle ────────────────────────────────────────────────────────
+  async function togglePolling() {
+    setPollToggling(true);
+    try {
+      if (pollingActive) {
+        await api.stopPolling();
+        setPollingActive(false);
+      } else {
+        await api.startPolling();
+        setPollingActive(true);
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPollToggling(false);
     }
   }
 
@@ -461,17 +483,41 @@ export default function Tracker({ onAdminChange }) {
 
       {/* ── Auto-Sync Status ── */}
       {trnLinked && (
-        <div style={{ background: '#0d0d1a', border: '1px solid rgba(76,175,80,0.25)', borderRadius: '10px', padding: '12px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#4caf50', flexShrink: 0, boxShadow: '0 0 5px #4caf50' }} />
+        <div style={{
+          background: '#0d0d1a',
+          border: `1px solid ${pollingActive ? 'rgba(76,175,80,0.35)' : 'rgba(255,255,255,0.06)'}`,
+          borderRadius: '10px', padding: '12px 20px', marginBottom: '16px',
+          display: 'flex', alignItems: 'center', gap: '10px',
+        }}>
+          <span style={{
+            width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
+            background: pollingActive ? '#4caf50' : '#333',
+            boxShadow: pollingActive ? '0 0 5px #4caf50' : 'none',
+          }} />
           <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', fontWeight: 600, flex: 1 }}>
             <span style={{ color: '#e0e0e0' }}>{trnLinked.username}</span>
-            <span style={{ color: '#4caf50', marginLeft: '8px', fontSize: '11px', letterSpacing: '1px' }}>· auto</span>
+            <span style={{ color: pollingActive ? '#4caf50' : '#444', marginLeft: '8px', fontSize: '11px', letterSpacing: '1px' }}>
+              · {pollingActive ? 'polling' : 'paused'}
+            </span>
             {trnLinked.last_sync_at && (
               <span style={{ color: '#444', marginLeft: '8px', fontSize: '11px' }}>
                 · {timeSince(trnLinked.last_sync_at)}
               </span>
             )}
           </span>
+          <button
+            onClick={togglePolling}
+            disabled={pollToggling}
+            style={{
+              padding: '5px 14px', borderRadius: '6px', cursor: pollToggling ? 'default' : 'pointer',
+              fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 700,
+              letterSpacing: '1px', border: 'none', opacity: pollToggling ? 0.5 : 1,
+              background: pollingActive ? 'rgba(233,30,99,0.15)' : 'rgba(76,175,80,0.15)',
+              color: pollingActive ? '#e91e63' : '#4caf50',
+            }}
+          >
+            {pollingActive ? '⏹ STOP' : '▶ START'}
+          </button>
           <button
             style={{ background: 'none', border: 'none', color: '#2a2a4a', fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', letterSpacing: '1px', textTransform: 'uppercase', cursor: 'pointer', padding: '4px 6px' }}
             onClick={unlinkTRN}
