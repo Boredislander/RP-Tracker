@@ -149,6 +149,10 @@ app.post('/api/link', middleware, async (req, res) => {
 
     res.json({ ok: true, trnRP });
   } catch (e) {
+    const upstream = e.upstreamStatus;
+    if (upstream === 404) return res.status(404).json({ error: 'Player not found — check platform and username' });
+    if (upstream === 429) return res.status(429).json({ error: 'TRN rate limit hit — try again in a moment' });
+    if (upstream === 401 || upstream === 403) return res.status(503).json({ error: 'TRN API key is invalid or expired' });
     res.status(502).json({ error: e.message });
   }
 });

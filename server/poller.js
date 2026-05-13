@@ -5,6 +5,13 @@ const TRN_BASE = 'https://public-api.tracker.gg/v2/apex/standard';
 const POLL_INTERVAL_MS = 60 * 1000; // 1 minute
 const MIN_DELTA = 1;
 
+class TRNError extends Error {
+  constructor(message, upstreamStatus) {
+    super(message);
+    this.upstreamStatus = upstreamStatus;
+  }
+}
+
 async function trnFetch(path) {
   const apiKey = process.env.TRN_API_KEY;
   if (!apiKey) throw new Error('TRN_API_KEY not configured');
@@ -13,8 +20,7 @@ async function trnFetch(path) {
     headers: { 'TRN-Api-Key': apiKey },
   });
 
-  if (res.status === 429) throw new Error('TRN rate limited');
-  if (!res.ok) throw new Error(`TRN HTTP ${res.status}`);
+  if (!res.ok) throw new TRNError(`TRN HTTP ${res.status}`, res.status);
   return res.json();
 }
 
